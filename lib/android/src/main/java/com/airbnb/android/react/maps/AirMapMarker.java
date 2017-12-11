@@ -141,8 +141,6 @@ public class AirMapMarker extends AirMapFeature {
                   CloseableReference.closeSafely(imageReference);
                 }
               }
-              v("LETRONC-Back", "UPDATE :IMAGE");
-
               update();
             }
           };
@@ -287,7 +285,6 @@ public class AirMapMarker extends AirMapFeature {
   }
 
   public void setImageBack(String uri) {
-    v("LETRONC-Back", uri);
     this.isBackgrapundEnabled = true;
 
     if (uri == null) {
@@ -310,7 +307,6 @@ public class AirMapMarker extends AirMapFeature {
               .build();
       logoHolder.setController(controller);
     } else {
-      v("LETRONC-Back", "FROM LOCAL");
       iconBackBitmapDescriptor = getBitmapDescriptorByName(uri);
       if (iconBackBitmapDescriptor != null) {
         iconBackBitmap = BitmapFactory.decodeResource(getResources(), getDrawableResourceByName(uri));

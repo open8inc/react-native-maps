@@ -42,6 +42,7 @@ import javax.annotation.Nullable;
 
 public class AirMapMarker extends AirMapFeature {
 
+  private GoogleMap map;
   private MarkerOptions markerOptions;
   private Marker marker;
   private int width;
@@ -370,6 +371,7 @@ public class AirMapMarker extends AirMapFeature {
 
   @Override
   public void addToMap(GoogleMap map) {
+    this.map = map;
     marker = map.addMarker(getMarkerOptions());
   }
 

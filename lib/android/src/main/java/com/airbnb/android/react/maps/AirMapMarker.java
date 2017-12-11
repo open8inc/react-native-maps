@@ -59,6 +59,12 @@ public class AirMapMarker extends AirMapFeature {
   private BitmapDescriptor iconBitmapDescriptor;
   private Bitmap iconBitmap;
 
+  private BitmapDescriptor iconBackBitmapDescriptor;
+  private Bitmap iconBackBitmap;
+  private Bitmap combinedBitmap;
+
+  private boolean isBackgrapundEnabled = false;
+
   private float rotation = 0.0f;
   private boolean flat = false;
   private boolean draggable = false;
@@ -73,6 +79,8 @@ public class AirMapMarker extends AirMapFeature {
 
   private final DraweeHolder<?> logoHolder;
   private DataSource<CloseableReference<CloseableImage>> dataSource;
+  private DataSource<CloseableReference<CloseableImage>> dataSourceBack;
+
   private final ControllerListener<ImageInfo> mLogoControllerListener =
       new BaseControllerListener<ImageInfo>() {
         @Override
@@ -104,6 +112,40 @@ public class AirMapMarker extends AirMapFeature {
           update();
         }
       };
+
+  private final ControllerListener<ImageInfo> mLogoBackControllerListener =
+          new BaseControllerListener<ImageInfo>() {
+            @Override
+            public void onFinalImageSet(
+                    String id,
+                    @Nullable final ImageInfo imageInfo,
+                    @Nullable Animatable animatable) {
+              CloseableReference<CloseableImage> imageReference = null;
+              try {
+                imageReference = dataSourceBack.getResult();
+                if (imageReference != null) {
+                  CloseableImage image = imageReference.get();
+                  if (image != null && image instanceof CloseableStaticBitmap) {
+                    CloseableStaticBitmap closeableStaticBitmap = (CloseableStaticBitmap) image;
+                    Bitmap bitmap = closeableStaticBitmap.getUnderlyingBitmap();
+                    if (bitmap != null) {
+                      bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+                      iconBackBitmap = bitmap;
+                      iconBackBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
+                    }
+                  }
+                }
+              } finally {
+                dataSourceBack.close();
+                if (imageReference != null) {
+                  CloseableReference.closeSafely(imageReference);
+                }
+              }
+              v("LETRONC-Back", "UPDATE :IMAGE");
+
+              update();
+            }
+          };
 
   public AirMapMarker(Context context) {
     super(context);
@@ -244,6 +286,39 @@ public class AirMapMarker extends AirMapFeature {
     }
   }
 
+  public void setImageBack(String uri) {
+    v("LETRONC-Back", uri);
+    this.isBackgrapundEnabled = true;
+
+    if (uri == null) {
+      iconBackBitmapDescriptor = null;
+      update();
+    } else if (uri.startsWith("http://") || uri.startsWith("https://") ||
+            uri.startsWith("file://")) {
+
+
+      ImageRequest imageRequest = ImageRequestBuilder
+              .newBuilderWithSource(Uri.parse(uri))
+              .build();
+
+      ImagePipeline imagePipeline = Fresco.getImagePipeline();
+      dataSourceBack = imagePipeline.fetchDecodedImage(imageRequest, this);
+      DraweeController controller = Fresco.newDraweeControllerBuilder()
+              .setImageRequest(imageRequest)
+              .setControllerListener(mLogoBackControllerListener)
+              .setOldController(logoHolder.getController())
+              .build();
+      logoHolder.setController(controller);
+    } else {
+      v("LETRONC-Back", "FROM LOCAL");
+      iconBackBitmapDescriptor = getBitmapDescriptorByName(uri);
+      if (iconBackBitmapDescriptor != null) {
+        iconBackBitmap = BitmapFactory.decodeResource(getResources(), getDrawableResourceByName(uri));
+      }
+      update();
+    }
+  }
+
   public MarkerOptions getMarkerOptions() {
     if (markerOptions == null) {
       markerOptions = createMarkerOptions();
@@ -281,21 +356,54 @@ public class AirMapMarker extends AirMapFeature {
     if (hasCustomMarkerView) {
       // creating a bitmap from an arbitrary view
       if (iconBitmapDescriptor != null) {
-        Bitmap viewBitmap = createDrawable();
-        int width = Math.max(iconBitmap.getWidth(), viewBitmap.getWidth());
-        int height = Math.max(iconBitmap.getHeight(), viewBitmap.getHeight());
-        Bitmap combinedBitmap = Bitmap.createBitmap(width, height, iconBitmap.getConfig());
-        Canvas canvas = new Canvas(combinedBitmap);
-        canvas.drawBitmap(iconBitmap, 0, 0, null);
-        canvas.drawBitmap(viewBitmap, 0, 0, null);
-        return BitmapDescriptorFactory.fromBitmap(combinedBitmap);
+        if (iconBackBitmapDescriptor != null) {
+          Bitmap viewBitmap = createDrawable();
+          int width = viewBitmap.getWidth();    //Math.max(iconBitmap.getWidth(), viewBitmap.getWidth());
+          int height = viewBitmap.getHeight();  //Math.max(iconBitmap.getHeight(), viewBitmap.getHeight());
+
+          double scale = ((double)width / 160.0);
+          int diff = (int)(14 * scale);
+
+          iconBackBitmap = Bitmap.createScaledBitmap(iconBackBitmap, width, height, true);
+          iconBitmap     = Bitmap.createScaledBitmap(iconBitmap, width - (2 * diff), width - (2 * diff), true);
+
+          Bitmap combinedBitmap = Bitmap.createBitmap(width, height, viewBitmap.getConfig());
+          Canvas canvas = new Canvas(combinedBitmap);
+          //canvas.drawBitmap(viewBitmap, 0, 0, null);
+          canvas.drawBitmap(iconBackBitmap, 0, 0, null);
+          canvas.drawBitmap(iconBitmap, diff, diff, null);
+
+          return BitmapDescriptorFactory.fromBitmap(combinedBitmap);
+        } else {
+          if (isBackgrapundEnabled == true) {
+            return null;
+          }
+          Bitmap viewBitmap = createDrawable();
+          int width  = Math.max(iconBitmap.getWidth(), viewBitmap.getWidth());
+          int height = Math.max(iconBitmap.getHeight(), viewBitmap.getHeight());
+
+          Bitmap combinedBitmap = Bitmap.createBitmap(width, height, viewBitmap.getConfig());
+          Canvas canvas = new Canvas(combinedBitmap);
+          canvas.drawBitmap(viewBitmap, 0, 0, null);
+          canvas.drawBitmap(iconBitmap, 0, 0, null);
+
+          return BitmapDescriptorFactory.fromBitmap(combinedBitmap);
+        }
       } else {
-        return BitmapDescriptorFactory.fromBitmap(createDrawable());
+        return null;
       }
     } else if (iconBitmapDescriptor != null) {
+      if (isBackgrapundEnabled == true) {
+        return null;
+      }
+
       // use local image as a marker
       return iconBitmapDescriptor;
     } else {
+      if (isBackgrapundEnabled == true) {
+        return null;
+      }
+
       // render the default marker pin
       return BitmapDescriptorFactory.defaultMarker(this.markerHue);
     }
@@ -321,7 +429,10 @@ public class AirMapMarker extends AirMapFeature {
       return;
     }
 
-    marker.setIcon(getIcon());
+    BitmapDescriptor bd = getIcon();
+    if (bd != null) {
+      marker.setIcon(bd);
+    }
 
     if (anchorIsSet) {
       marker.setAnchor(anchorX, anchorY);

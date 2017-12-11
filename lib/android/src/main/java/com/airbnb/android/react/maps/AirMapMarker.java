@@ -263,7 +263,7 @@ public class AirMapMarker extends AirMapFeature {
     update();
   }
 
-  public void setImage(String uri) {
+  public void setImage(final String uri) {
     if (uri == null) {
       iconBitmapDescriptor = null;
       update();

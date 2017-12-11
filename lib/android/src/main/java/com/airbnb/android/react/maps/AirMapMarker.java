@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.drawable.Animatable;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.view.View;
 import android.widget.LinearLayout;
 
@@ -32,6 +33,10 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 import javax.annotation.Nullable;
 
@@ -263,6 +268,7 @@ public class AirMapMarker extends AirMapFeature {
       update();
     } else if (uri.startsWith("http://") || uri.startsWith("https://") ||
         uri.startsWith("file://")) {
+      /*
       ImageRequest imageRequest = ImageRequestBuilder
           .newBuilderWithSource(Uri.parse(uri))
           .build();
@@ -275,6 +281,31 @@ public class AirMapMarker extends AirMapFeature {
           .setOldController(logoHolder.getController())
           .build();
       logoHolder.setController(controller);
+      */
+      new AsyncTask<Void, Void, Object>() {
+        @Override
+        protected Void doInBackground(Void... params) {
+
+          try{
+            URL url = new URL(uri);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setDoInput(true);
+            conn.connect();
+            InputStream stream = conn.getInputStream();
+            iconBitmap = BitmapFactory.decodeStream(stream);
+            iconBitmapDescriptor = BitmapDescriptorFactory.fromBitmap(iconBitmap);
+          }
+          catch (Exception e) {
+            // TODO: notify
+          }
+          return null;
+        }
+
+        @Override
+        protected void onPostExecute(Object result) {
+          updateMarker();
+        }
+      }.execute();
     } else {
       iconBitmapDescriptor = getBitmapDescriptorByName(uri);
       if (iconBitmapDescriptor != null) {
@@ -420,11 +451,19 @@ public class AirMapMarker extends AirMapFeature {
     return options;
   }
 
+  public void updateMarker() {
+    this.update();
+  }
+
   public void update() {
     if (marker == null) {
       return;
     }
 
+    marker.remove();
+    marker = map.addMarker(createMarkerOptions());
+
+/*
     BitmapDescriptor bd = getIcon();
     if (bd != null) {
       marker.setIcon(bd);
@@ -441,6 +480,7 @@ public class AirMapMarker extends AirMapFeature {
     } else {
       marker.setInfoWindowAnchor(0.5f, 0);
     }
+*/
   }
 
   public void update(int width, int height) {

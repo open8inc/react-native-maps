@@ -462,10 +462,10 @@ public class AirMapMarker extends AirMapFeature {
       return;
     }
 
-    marker.remove();
-    marker = map.addMarker(createMarkerOptions());
+    //marker.remove();
+    //marker = map.addMarker(createMarkerOptions());
 
-/*
+
     BitmapDescriptor bd = getIcon();
     if (bd != null) {
       marker.setIcon(bd);
@@ -482,7 +482,6 @@ public class AirMapMarker extends AirMapFeature {
     } else {
       marker.setInfoWindowAnchor(0.5f, 0);
     }
-*/
   }
 
   public void update(int width, int height) {
